@@ -137,6 +137,13 @@ input bool EnableFileLogs = true; // Guardar CSV con métricas
 #define LABEL_RSI_SEPARATOR_1 "RsiSeparator1Label"
 #define LABEL_RSI_SEPARATOR_2 "RsiSeparator2Label"
 
+// --- NUEVO: Etiquetas de Patrones ---
+#define LABEL_PATTERN_SEPARATOR "PatternSeparatorLabel"
+#define LABEL_PATTERN_STATUS "PatternStatusLabel"
+
+// --- NUEVO: Objetos Gráficos del Patrón ---
+#define PATTERN_LINE_NAME "BearishDivTrend"
+
 // Botones de Utilidad
 #define BUTTON_SEND_SCREENSHOT "SendScreenshotButton"
 #define BUTTON_CLEANUP_FILES "CleanupFilesButton"
@@ -224,7 +231,7 @@ int OnInit()
    ObjectSetInteger(0, BG_RECT, OBJPROP_XDISTANCE, 10);
    ObjectSetInteger(0, BG_RECT, OBJPROP_YDISTANCE, 20);
    ObjectSetInteger(0, BG_RECT, OBJPROP_XSIZE, 580); // Ancho reducido
-   ObjectSetInteger(0, BG_RECT, OBJPROP_YSIZE, 220);
+   ObjectSetInteger(0, BG_RECT, OBJPROP_YSIZE, 300);
    ObjectSetInteger(0, BG_RECT, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, BG_RECT, OBJPROP_BGCOLOR, RGB(33,33,33));
    ObjectSetInteger(0, BG_RECT, OBJPROP_BORDER_TYPE, BORDER_FLAT);
@@ -308,6 +315,15 @@ int OnInit()
    CREATE_RSI_LABEL(LABEL_RSI_MID_BOTTOM_STATUS)
    CREATE_RSI_LABEL(LABEL_REACT_BOTTOM_STATUS)
    CREATE_RSI_LABEL(LABEL_RSI_BOTTOM_STATUS)
+
+   // --- NUEVO BLOQUE PATRONES ---
+   y_pos += 5; // Un poco de espacio extra
+   CREATE_RSI_SEPARATOR(LABEL_PATTERN_SEPARATOR)
+   ObjectSetString(0, LABEL_PATTERN_SEPARATOR, OBJPROP_TEXT, "--- Detección Patrones ---");
+
+   CREATE_RSI_LABEL(LABEL_PATTERN_STATUS)
+   ObjectSetString(0, LABEL_PATTERN_STATUS, OBJPROP_TEXT, "Escaneando...");
+   ObjectSetInteger(0, LABEL_PATTERN_STATUS, OBJPROP_COLOR, clrSilver);
 
    #undef CREATE_RSI_LABEL
    #undef CREATE_RSI_SEPARATOR
@@ -410,6 +426,12 @@ void OnDeinit(const int reason)
    ObjectDelete(0, LABEL_RSI_SEPARATOR_1);
    ObjectDelete(0, LABEL_RSI_SEPARATOR_2);
 
+   // --- NUEVO ---
+   ObjectDelete(0, LABEL_PATTERN_SEPARATOR);
+   ObjectDelete(0, LABEL_PATTERN_STATUS);
+   ObjectDelete(0, PATTERN_LINE_NAME);
+   // --------------
+
    // Borrar Líneas de Tendencia e Impulso
    ObjectDelete(0, TRENDLINE_HIGH);
    ObjectDelete(0, TRENDLINE_LOW);
@@ -463,6 +485,59 @@ void OnTimer()
 
    // 2. Actualización del Panel Visual
    UpdateInfo();
+
+   // --- Lógica de Patrones (Prioridades) ---
+
+   // 1. Buscar Divergencia (Es más compleja, tiene prioridad)
+   PatternResult patDiv = DetectBearishDivergence(rsi_handle);
+
+   // 2. Buscar Techo Bajista (Es de continuación)
+   PatternResult patCeiling = DetectBearishTrendCeiling(rsi_handle, ma200_handle);
+
+   // Lógica de visualización en Panel
+   string status_text = "Escaneando: Sin Señal";
+   color status_color = clrDimGray;
+
+   // Prioridad A: Divergencia
+   if(patDiv.found)
+   {
+      status_text = "⚠️ DIVERGENCIA BAJISTA";
+      status_color = clrOrangeRed;
+      DrawPatternVisuals(patDiv.timeStart, patDiv.priceStart, patDiv.timeEnd, patDiv.priceEnd);
+
+      // Alerta Telegram (con filtro de tiempo)
+      static datetime last_div_alert = 0;
+      if(TimeCurrent() - last_div_alert > 3600)
+      {
+         SendTelegramMessage(patDiv.description, 2);
+         last_div_alert = TimeCurrent();
+      }
+   }
+   // Prioridad B: Techo Bajista (Si no hay divergencia)
+   else if(patCeiling.found)
+   {
+      status_text = "📉 TECHO RSI (Continuación)";
+      status_color = clrMagenta; // Color distinto para diferenciar
+
+      // Alerta Telegram
+      static datetime last_ceil_alert = 0;
+      // Este patrón puede durar varias velas, filtramos más la alerta (cada 4 horas por ejemplo)
+      if(TimeCurrent() - last_ceil_alert > 14400)
+      {
+         SendTelegramMessage(patCeiling.description, 2);
+         last_ceil_alert = TimeCurrent();
+      }
+   }
+   else
+   {
+      // Limpieza si no hay patrones
+      status_text = "Escaneando: Neutro";
+      status_color = clrLimeGreen;
+   }
+
+   // Actualizar la etiqueta del panel
+   ObjectSetString(0, LABEL_PATTERN_STATUS, OBJPROP_TEXT, status_text);
+   ObjectSetInteger(0, LABEL_PATTERN_STATUS, OBJPROP_COLOR, status_color);
 
    // 3. Notificaciones y Logs
    datetime currentBarTime = iTime(_Symbol, _Period, 0);
@@ -1296,7 +1371,16 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       ObjectSetInteger(0, LABEL_RSI_LOW_BOTTOM_STATUS, OBJPROP_XDISTANCE, col2_x); ObjectSetInteger(0, LABEL_RSI_LOW_BOTTOM_STATUS, OBJPROP_YDISTANCE, col2_y); col2_y += line_height;
       ObjectSetInteger(0, LABEL_RSI_MID_BOTTOM_STATUS, OBJPROP_XDISTANCE, col2_x); ObjectSetInteger(0, LABEL_RSI_MID_BOTTOM_STATUS, OBJPROP_YDISTANCE, col2_y); col2_y += line_height;
       ObjectSetInteger(0, LABEL_REACT_BOTTOM_STATUS, OBJPROP_XDISTANCE, col2_x); ObjectSetInteger(0, LABEL_REACT_BOTTOM_STATUS, OBJPROP_YDISTANCE, col2_y); col2_y += line_height;
-      ObjectSetInteger(0, LABEL_RSI_BOTTOM_STATUS, OBJPROP_XDISTANCE, col2_x); ObjectSetInteger(0, LABEL_RSI_BOTTOM_STATUS, OBJPROP_YDISTANCE, col2_y);
+      ObjectSetInteger(0, LABEL_RSI_BOTTOM_STATUS, OBJPROP_XDISTANCE, col2_x); ObjectSetInteger(0, LABEL_RSI_BOTTOM_STATUS, OBJPROP_YDISTANCE, col2_y); col2_y += line_height;
+
+      // --- NUEVO: Mover Etiquetas de Patrón ---
+      col2_y += 5; // Espacio extra
+      ObjectSetInteger(0, LABEL_PATTERN_SEPARATOR, OBJPROP_XDISTANCE, col2_x);
+      ObjectSetInteger(0, LABEL_PATTERN_SEPARATOR, OBJPROP_YDISTANCE, col2_y);
+      col2_y += line_height;
+
+      ObjectSetInteger(0, LABEL_PATTERN_STATUS, OBJPROP_XDISTANCE, col2_x);
+      ObjectSetInteger(0, LABEL_PATTERN_STATUS, OBJPROP_YDISTANCE, col2_y);
 
       // Mover Botones
       int btn_y = y + 340;
@@ -1304,5 +1388,177 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       ObjectSetInteger(0, BUTTON_CLEANUP_FILES, OBJPROP_XDISTANCE, x + 140); ObjectSetInteger(0, BUTTON_CLEANUP_FILES, OBJPROP_YDISTANCE, btn_y);
       ObjectSetInteger(0, BUTTON_TEST_BOT2, OBJPROP_XDISTANCE, x + 270); ObjectSetInteger(0, BUTTON_TEST_BOT2, OBJPROP_YDISTANCE, btn_y);
    }
+}
+
+//+------------------------------------------------------------------+
+//| LÓGICA DE DETECCIÓN DE PATRONES (DIVERGENCIA + ACUMULACIÓN)      |
+//+------------------------------------------------------------------+
+struct PatternResult
+{
+   bool     found;
+   datetime timeStart;
+   datetime timeEnd;
+   double   priceStart;
+   double   priceEnd;
+   double   priceEntry;
+   string   description;
+};
+
+// Función auxiliar para encontrar picos (Highs locales)
+int GetPeakIndex(const double &buffer[], int start_index, int count, int window)
+{
+   for(int i = start_index + window; i < count - window; i++)
+   {
+      bool isPeak = true;
+      double currentVal = buffer[i];
+      for(int k = 1; k <= window; k++)
+      {
+         if(currentVal <= buffer[i-k] || currentVal <= buffer[i+k])
+         {
+            isPeak = false;
+            break;
+         }
+      }
+      if(isPeak) return i;
+   }
+   return -1;
+}
+
+// Función Principal del Algoritmo
+PatternResult DetectBearishDivergence(int rsi_h, int search_period=60)
+{
+   PatternResult result = {false, 0, 0, 0.0, 0.0, 0.0, ""};
+
+   if(rsi_h == INVALID_HANDLE) return result;
+
+   double rsi_buff[];
+   double high_buff[];
+   double low_buff[];
+
+   if(CopyBuffer(rsi_h, 0, 0, search_period, rsi_buff) <= 0) return result;
+   if(CopyHigh(_Symbol, _Period, 0, search_period, high_buff) <= 0) return result;
+   if(CopyLow(_Symbol, _Period, 0, search_period, low_buff) <= 0) return result;
+
+   ArraySetAsSeries(rsi_buff, true);
+   ArraySetAsSeries(high_buff, true);
+   ArraySetAsSeries(low_buff, true);
+
+   // 1. Buscar Pico 2 (El spike reciente, ventana estrecha de 2 velas)
+   int peak2_idx = GetPeakIndex(rsi_buff, 2, search_period, 2);
+   if(peak2_idx == -1) return result;
+
+   // 2. Buscar Pico 1 (El alto anterior, ventana más amplia de 4 velas)
+   int peak1_idx = GetPeakIndex(rsi_buff, peak2_idx + 5, search_period, 4);
+   if(peak1_idx == -1) return result;
+
+   double rsi1 = rsi_buff[peak1_idx];
+   double rsi2 = rsi_buff[peak2_idx];
+   double price1 = high_buff[peak1_idx];
+   double price2 = high_buff[peak2_idx];
+
+   // 3. Reglas de Divergencia Bajista
+   bool rsi_lower_high = (rsi2 < rsi1);          // RSI bajando
+   bool price_higher_high = (price2 > price1);   // Precio subiendo
+   bool rsi_overbought = (rsi1 > 65.0);          // El primer pico fue fuerte
+
+   if(rsi_lower_high && price_higher_high && rsi_overbought)
+   {
+      // 4. Regla de Acumulación/Soporte
+      // Buscamos el mínimo más bajo DESPUÉS del segundo pico
+      double support_level = DBL_MAX;
+      for(int k = 0; k <= peak2_idx; k++)
+      {
+         if(low_buff[k] < support_level) support_level = low_buff[k];
+      }
+
+      // Si el precio actual está cerca de romper ese soporte (distancia < 100 puntos)
+      MqlTick tick;
+      SymbolInfoTick(_Symbol, tick);
+      double dist_to_break = MathAbs(tick.bid - support_level) / _Point;
+
+      // Filtro: Solo avisar si estamos "amenazando" el soporte o acabamos de romperlo
+      if(dist_to_break < 200 || tick.bid < support_level)
+      {
+         result.found = true;
+         result.timeStart = iTime(_Symbol, _Period, peak1_idx);
+         result.timeEnd = iTime(_Symbol, _Period, peak2_idx);
+         result.priceStart = price1;
+         result.priceEnd = price2;
+         result.priceEntry = support_level;
+         result.description = "⚠️ PATRÓN DETECTADO: Divergencia Bajista + Presión en Soporte";
+      }
+   }
+   return result;
+}
+
+// Dibujar líneas en el gráfico
+void DrawPatternVisuals(datetime t1, double p1, datetime t2, double p2)
+{
+   string obj_name = PATTERN_LINE_NAME;
+   if(ObjectFind(0, obj_name) < 0)
+      ObjectCreate(0, obj_name, OBJ_TREND, 0, t1, p1, t2, p2);
+   else
+   {
+      ObjectSetInteger(0, obj_name, OBJPROP_TIME, 0, t1);
+      ObjectSetDouble(0, obj_name, OBJPROP_PRICE, 0, p1);
+      ObjectSetInteger(0, obj_name, OBJPROP_TIME, 1, t2);
+      ObjectSetDouble(0, obj_name, OBJPROP_PRICE, 1, p2);
+   }
+   ObjectSetInteger(0, obj_name, OBJPROP_COLOR, clrRed);
+   ObjectSetInteger(0, obj_name, OBJPROP_WIDTH, 2);
+   ObjectSetInteger(0, obj_name, OBJPROP_RAY_RIGHT, true);
+}
+
+//+------------------------------------------------------------------+
+//| PATRÓN 2: Techo de RSI en Tendencia Bajista (Trend Ceiling)      |
+//+------------------------------------------------------------------+
+PatternResult DetectBearishTrendCeiling(int rsi_h, int ma200_h)
+{
+   PatternResult result = {false, 0, 0, 0.0, 0.0, 0.0, ""};
+
+   if(rsi_h == INVALID_HANDLE || ma200_h == INVALID_HANDLE) return result;
+
+   double rsi_buff[];
+   double ma200_buff[];
+   double close_buff[];
+
+   // Solo necesitamos las últimas 3 velas para ver el comportamiento actual
+   if(CopyBuffer(rsi_h, 0, 0, 3, rsi_buff) <= 0) return result;
+   if(CopyBuffer(ma200_h, 0, 0, 3, ma200_buff) <= 0) return result;
+   if(CopyClose(_Symbol, _Period, 0, 3, close_buff) <= 0) return result;
+
+   ArraySetAsSeries(rsi_buff, true);
+   ArraySetAsSeries(ma200_buff, true);
+   ArraySetAsSeries(close_buff, true);
+
+   // 1. Validar Tendencia Bajista Fuerte
+   // El precio debe estar por debajo de la MA200
+   bool trend_is_bearish = (close_buff[0] < ma200_buff[0]);
+
+   if(!trend_is_bearish) return result; // Si no es bajista, ignoramos
+
+   // 2. Validar el "Techo" del RSI (LOW TOP LINE)
+   // El RSI actual o el de la vela anterior debe estar cerca de la línea Low-Top
+   // Usamos un margen de tolerancia (ej. +/- 2 puntos)
+   double rsi_val = rsi_buff[0]; // RSI actual
+   double target_level = rsi_low_top_level; // Tu variable global calculada
+
+   // Lógica: El RSI está "probando" la resistencia pero no la rompe con fuerza
+   // Debe estar entre (Nivel - 3) y (Nivel + 2)
+   bool touching_ceiling = (rsi_val > (target_level - 3.0) && rsi_val < (target_level + 2.0));
+
+   // 3. Validar que NO haya superado el nivel superior (Mid-Top)
+   // Esto asegura que es un techo bajista y no una reversión alcista
+   bool below_mid_top = (rsi_val < rsi_mid_top_level);
+
+   if(touching_ceiling && below_mid_top)
+   {
+      result.found = true;
+      result.timeStart = TimeCurrent();
+      result.priceEntry = close_buff[0];
+      result.description = "📉 PATRÓN: Techo Bajista. Tendencia Baja + RSI rechaza nivel " + DoubleToString(target_level, 1);
+   }
+
+   return result;
 }
 //+------------------------------------------------------------------+
