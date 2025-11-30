@@ -488,51 +488,64 @@ void OnTimer()
 
    // --- Lógica de Patrones (Prioridades) ---
 
-   // 1. Buscar Divergencia (Es más compleja, tiene prioridad)
-   PatternResult patDiv = DetectBearishDivergence(rsi_handle);
+   // A. Buscar Divergencias (Reversiones - Alta Prioridad)
+   PatternResult bearDiv = DetectBearishDivergence(rsi_handle);
+   PatternResult bullDiv = DetectBullishDivergence(rsi_handle);
 
-   // 2. Buscar Techo Bajista (Es de continuación)
-   PatternResult patCeiling = DetectBearishTrendCeiling(rsi_handle, ma200_handle);
+   // B. Buscar Continuaciones (Media Prioridad)
+   PatternResult bearCeiling = DetectBearishTrendCeiling(rsi_handle, ma200_handle);
+   PatternResult bullFloor   = DetectBullishTrendFloor(rsi_handle, ma200_handle);
 
    // Lógica de visualización en Panel
    string status_text = "Escaneando: Sin Señal";
    color status_color = clrDimGray;
 
-   // Prioridad A: Divergencia
-   if(patDiv.found)
+   // --- EVALUACIÓN DE PRIORIDADES ---
+
+   // 1. Divergencia Bajista
+   if(bearDiv.found)
    {
       status_text = "⚠️ DIVERGENCIA BAJISTA";
       status_color = clrOrangeRed;
-      DrawPatternVisuals(patDiv.timeStart, patDiv.priceStart, patDiv.timeEnd, patDiv.priceEnd);
+      DrawPatternVisuals(bearDiv.timeStart, bearDiv.priceStart, bearDiv.timeEnd, bearDiv.priceEnd, clrRed);
 
-      // Alerta Telegram (con filtro de tiempo)
-      static datetime last_div_alert = 0;
-      if(TimeCurrent() - last_div_alert > 3600)
-      {
-         SendTelegramMessage(patDiv.description, 2);
-         last_div_alert = TimeCurrent();
-      }
+      static datetime last_alert_bear = 0;
+      if(TimeCurrent() - last_alert_bear > 3600) { SendTelegramMessage(bearDiv.description, 2); last_alert_bear = TimeCurrent(); }
    }
-   // Prioridad B: Techo Bajista (Si no hay divergencia)
-   else if(patCeiling.found)
+   // 2. Divergencia Alcista
+   else if(bullDiv.found)
    {
-      status_text = "📉 TECHO RSI (Continuación)";
-      status_color = clrMagenta; // Color distinto para diferenciar
+      status_text = "🚀 DIVERGENCIA ALCISTA";
+      status_color = clrDodgerBlue;
+      DrawPatternVisuals(bullDiv.timeStart, bullDiv.priceStart, bullDiv.timeEnd, bullDiv.priceEnd, clrBlue);
 
-      // Alerta Telegram
-      static datetime last_ceil_alert = 0;
-      // Este patrón puede durar varias velas, filtramos más la alerta (cada 4 horas por ejemplo)
-      if(TimeCurrent() - last_ceil_alert > 14400)
-      {
-         SendTelegramMessage(patCeiling.description, 2);
-         last_ceil_alert = TimeCurrent();
-      }
+      static datetime last_alert_bull = 0;
+      if(TimeCurrent() - last_alert_bull > 3600) { SendTelegramMessage(bullDiv.description, 2); last_alert_bull = TimeCurrent(); }
+   }
+   // 3. Continuación Bajista (Techo)
+   else if(bearCeiling.found)
+   {
+      status_text = "📉 TECHO RSI (Venta)";
+      status_color = clrMagenta;
+
+      static datetime last_alert_ceil = 0;
+      if(TimeCurrent() - last_alert_ceil > 14400) { SendTelegramMessage(bearCeiling.description, 2); last_alert_ceil = TimeCurrent(); }
+   }
+   // 4. Continuación Alcista (Suelo)
+   else if(bullFloor.found)
+   {
+      status_text = "📈 SUELO RSI (Compra)";
+      status_color = clrAqua;
+
+      static datetime last_alert_floor = 0;
+      if(TimeCurrent() - last_alert_floor > 14400) { SendTelegramMessage(bullFloor.description, 2); last_alert_floor = TimeCurrent(); }
    }
    else
    {
-      // Limpieza si no hay patrones
+      // Limpieza si no hay patrones activos
       status_text = "Escaneando: Neutro";
       status_color = clrLimeGreen;
+      // ObjectDelete(0, PATTERN_LINE_NAME); // Descomentar si quieres que la línea desaparezca al instante
    }
 
    // Actualizar la etiqueta del panel
@@ -1424,6 +1437,31 @@ int GetPeakIndex(const double &buffer[], int start_index, int count, int window)
    return -1;
 }
 
+//+------------------------------------------------------------------+
+//| Función auxiliar para encontrar VALLES (Lows locales)            |
+//+------------------------------------------------------------------+
+int GetValleyIndex(const double &buffer[], int start_index, int count, int window)
+{
+   for(int i = start_index + window; i < count - window; i++)
+   {
+      bool isValley = true;
+      double currentVal = buffer[i];
+
+      // Verificar vecinos: el valor actual debe ser MENOR que los vecinos
+      for(int k = 1; k <= window; k++)
+      {
+         if(currentVal >= buffer[i-k] || currentVal >= buffer[i+k])
+         {
+            isValley = false;
+            break;
+         }
+      }
+
+      if(isValley) return i; // Retorna el índice del valle encontrado
+   }
+   return -1; // No se encontró
+}
+
 // Función Principal del Algoritmo
 PatternResult DetectBearishDivergence(int rsi_h, int search_period=60)
 {
@@ -1492,7 +1530,7 @@ PatternResult DetectBearishDivergence(int rsi_h, int search_period=60)
 }
 
 // Dibujar líneas en el gráfico
-void DrawPatternVisuals(datetime t1, double p1, datetime t2, double p2)
+void DrawPatternVisuals(datetime t1, double p1, datetime t2, double p2, color line_color)
 {
    string obj_name = PATTERN_LINE_NAME;
    if(ObjectFind(0, obj_name) < 0)
@@ -1504,7 +1542,7 @@ void DrawPatternVisuals(datetime t1, double p1, datetime t2, double p2)
       ObjectSetInteger(0, obj_name, OBJPROP_TIME, 1, t2);
       ObjectSetDouble(0, obj_name, OBJPROP_PRICE, 1, p2);
    }
-   ObjectSetInteger(0, obj_name, OBJPROP_COLOR, clrRed);
+   ObjectSetInteger(0, obj_name, OBJPROP_COLOR, line_color);
    ObjectSetInteger(0, obj_name, OBJPROP_WIDTH, 2);
    ObjectSetInteger(0, obj_name, OBJPROP_RAY_RIGHT, true);
 }
@@ -1557,6 +1595,123 @@ PatternResult DetectBearishTrendCeiling(int rsi_h, int ma200_h)
       result.timeStart = TimeCurrent();
       result.priceEntry = close_buff[0];
       result.description = "📉 PATRÓN: Techo Bajista. Tendencia Baja + RSI rechaza nivel " + DoubleToString(target_level, 1);
+   }
+
+   return result;
+}
+
+//+------------------------------------------------------------------+
+//| PATRÓN 3: Divergencia Alcista (Bullish Divergence)               |
+//+------------------------------------------------------------------+
+PatternResult DetectBullishDivergence(int rsi_h, int search_period=60)
+{
+   PatternResult result = {false, 0, 0, 0.0, 0.0, 0.0, ""};
+   if(rsi_h == INVALID_HANDLE) return result;
+
+   double rsi_buff[];
+   double low_buff[]; // Usamos LOW para comparar valles
+   double high_buff[]; // Usamos HIGH para la ruptura (resistencia)
+
+   if(CopyBuffer(rsi_h, 0, 0, search_period, rsi_buff) <= 0) return result;
+   if(CopyLow(_Symbol, _Period, 0, search_period, low_buff) <= 0) return result;
+   if(CopyHigh(_Symbol, _Period, 0, search_period, high_buff) <= 0) return result;
+
+   ArraySetAsSeries(rsi_buff, true);
+   ArraySetAsSeries(low_buff, true);
+   ArraySetAsSeries(high_buff, true);
+
+   // 1. Buscar Valle 2 (El más reciente)
+   int valley2_idx = GetValleyIndex(rsi_buff, 2, search_period, 2);
+   if(valley2_idx == -1) return result;
+
+   // 2. Buscar Valle 1 (El anterior)
+   int valley1_idx = GetValleyIndex(rsi_buff, valley2_idx + 5, search_period, 4);
+   if(valley1_idx == -1) return result;
+
+   double rsi1 = rsi_buff[valley1_idx];
+   double rsi2 = rsi_buff[valley2_idx];
+   double price1 = low_buff[valley1_idx];
+   double price2 = low_buff[valley2_idx];
+
+   // 3. Reglas de Divergencia Alcista
+   bool rsi_higher_low = (rsi2 > rsi1);          // RSI subiendo (fuerza ganando)
+   bool price_lower_low = (price2 < price1);     // Precio bajando (fuerza perdiendo)
+   bool rsi_oversold = (rsi1 < 35.0);            // El primer valle fue profundo (sobreventa)
+
+   if(rsi_higher_low && price_lower_low && rsi_oversold)
+   {
+      // 4. Regla de Confirmación (Ruptura de Resistencia local)
+      // Buscamos el precio MÁXIMO (High) entre el Valle 2 y ahora.
+      double resistance_level = 0.0;
+      for(int k = 0; k <= valley2_idx; k++)
+      {
+         if(high_buff[k] > resistance_level) resistance_level = high_buff[k];
+      }
+
+      // Precio actual (Ask para compras)
+      MqlTick tick;
+      SymbolInfoTick(_Symbol, tick);
+
+      // Si el precio está rompiendo o muy cerca de la resistencia local
+      double dist_to_break = MathAbs(resistance_level - tick.ask) / _Point;
+
+      if(dist_to_break < 200 || tick.ask > resistance_level)
+      {
+         result.found = true;
+         result.timeStart = iTime(_Symbol, _Period, valley1_idx);
+         result.timeEnd = iTime(_Symbol, _Period, valley2_idx);
+         result.priceStart = price1;
+         result.priceEnd = price2; // Dibujamos en los Lows
+         result.priceEntry = resistance_level;
+         result.description = "🚀 PATRÓN DETECTADO: Divergencia Alcista. Entrada en ruptura de " + DoubleToString(resistance_level, _Digits);
+      }
+   }
+   return result;
+}
+
+//+------------------------------------------------------------------+
+//| PATRÓN 4: Suelo de RSI en Tendencia Alcista (Trend Floor)        |
+//+------------------------------------------------------------------+
+PatternResult DetectBullishTrendFloor(int rsi_h, int ma200_h)
+{
+   PatternResult result = {false, 0, 0, 0.0, 0.0, 0.0, ""};
+   if(rsi_h == INVALID_HANDLE || ma200_h == INVALID_HANDLE) return result;
+
+   double rsi_buff[];
+   double ma200_buff[];
+   double close_buff[];
+
+   if(CopyBuffer(rsi_h, 0, 0, 3, rsi_buff) <= 0) return result;
+   if(CopyBuffer(ma200_h, 0, 0, 3, ma200_buff) <= 0) return result;
+   if(CopyClose(_Symbol, _Period, 0, 3, close_buff) <= 0) return result;
+
+   ArraySetAsSeries(rsi_buff, true);
+   ArraySetAsSeries(ma200_buff, true);
+   ArraySetAsSeries(close_buff, true);
+
+   // 1. Validar Tendencia Alcista Fuerte
+   bool trend_is_bullish = (close_buff[0] > ma200_buff[0]);
+
+   if(!trend_is_bullish) return result;
+
+   // 2. Validar el "Suelo" del RSI (LOW BOTTOM LINE)
+   // En tendencia alcista, el RSI suele rebotar en 40 (aprox), no baja hasta 30.
+   double rsi_val = rsi_buff[0];
+   double target_level = rsi_low_bottom_level; // Tu nivel calculado (~37.5%)
+
+   // Lógica: RSI toca el soporte
+   bool touching_floor = (rsi_val > (target_level - 2.0) && rsi_val < (target_level + 3.0));
+
+   // 3. Validar que NO haya bajado al nivel inferior (React Bottom)
+   // Si baja hasta 12.5%, la tendencia podría estar rota.
+   bool above_react_bottom = (rsi_val > rsi_react_bottom_level);
+
+   if(touching_floor && above_react_bottom)
+   {
+      result.found = true;
+      result.timeStart = TimeCurrent();
+      result.priceEntry = close_buff[0];
+      result.description = "📈 PATRÓN: Suelo Alcista. Tendencia Alta + RSI rebota en nivel " + DoubleToString(target_level, 1);
    }
 
    return result;
