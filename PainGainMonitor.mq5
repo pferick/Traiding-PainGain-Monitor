@@ -1,7 +1,7 @@
 //+------------------------------------------------------------------+
 //|                                              PainGainMonitor.mq5 |
-//|                                  Copyright 2025, MetaQuotes Ltd. |
-//|                                             https://www.mql5.com |
+//|                             Copyright 2025, MetaQuotes Ltd.      |
+//|                                        https://www.mql5.com      |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, MetaQuotes Ltd."
 #property link      "https://www.mql5.com"
@@ -707,12 +707,12 @@ void UpdateRsiStatusLabels()
    double range = 0.5;
 
    // Actualizar cada etiqueta individualmente
-   UpdateSingleRsiLabel(LABEL_RSI_TOP_STATUS,    "RSI-TOP",        current_rsi, rsi_top_level, range);
-   UpdateSingleRsiLabel(LABEL_REACT_TOP_STATUS,  "REACT-TOP",      current_rsi, rsi_react_top_level, range);
+   UpdateSingleRsiLabel(LABEL_RSI_TOP_STATUS,     "RSI-TOP",        current_rsi, rsi_top_level, range);
+   UpdateSingleRsiLabel(LABEL_REACT_TOP_STATUS,   "REACT-TOP",      current_rsi, rsi_react_top_level, range);
    UpdateSingleRsiLabel(LABEL_RSI_MID_TOP_STATUS,"RSI-MID-TOP",    current_rsi, rsi_mid_top_level, range);
    UpdateSingleRsiLabel(LABEL_RSI_LOW_TOP_STATUS,"RSI-LOW-TOP",    current_rsi, rsi_low_top_level, range);
 
-   UpdateSingleRsiLabel(LABEL_RSI_MID_STATUS,    "RSI-MID",        current_rsi, rsi_mid_level, range);
+   UpdateSingleRsiLabel(LABEL_RSI_MID_STATUS,     "RSI-MID",        current_rsi, rsi_mid_level, range);
 
    UpdateSingleRsiLabel(LABEL_RSI_LOW_BOTTOM_STATUS, "RSI-LOW-BOTTOM", current_rsi, rsi_low_bottom_level, range);
    UpdateSingleRsiLabel(LABEL_RSI_MID_BOTTOM_STATUS, "RSI-MID-BOTTOM", current_rsi, rsi_mid_bottom_level, range);
