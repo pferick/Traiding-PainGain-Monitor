@@ -38,23 +38,23 @@ input string separador_tele="----------------"; // Telegram Configuration
 
 //--- Bot 1 (Notificaciones Generales)
 input bool EnableTelegramBot1 = false;
-input string TelegramBotToken1 = ""; // Enter Token Here
-input string TelegramChatID1 = "";   // Enter Chat ID Here
+input string TelegramBotToken1 = "8134783570:AAGKHA9cwTc73z6nR8cYGFBbgjPb-bnm7Ys"; // Enter Token Here
+input string TelegramChatID1 = "907324612";   // Enter Chat ID Here
 
 //--- Bot 2 (Alertas RSI)
 input bool EnableTelegramBot2 = true;
-input string TelegramBotToken2 = ""; // Enter Token Here
-input string TelegramChatID2 = "";   // Enter Chat ID Here
+input string TelegramBotToken2 = "7689707642:AAGN8c_reruO5W01Ro5T8D6lcHfYhG0Mn84"; // Enter Token Here
+input string TelegramChatID2 = "907324612";   // Enter Chat ID Here
 
 //--- Bot 3 (Otras Alertas)
 input bool EnableTelegramBot3 = false;
-input string TelegramBotToken3 = ""; // Enter Token Here
-input string TelegramChatID3 = "";   // Enter Chat ID Here
+input string TelegramBotToken3 = "7634992607:AAH0Wa158Q664-YaQ817CNKxbVbRL7Mifts"; // Enter Token Here
+input string TelegramChatID3 = "907324612";   // Enter Chat ID Here
 
 //--- Bot 4 (Monitor)
 input bool EnableTelegramBot4 = false;
-input string TelegramBotToken4 = ""; // Enter Token Here
-input string TelegramChatID4 = "";   // Enter Chat ID Here
+input string TelegramBotToken4 = "7567167628:AAHyUTryn5THiPeQXLCHPHX3JylMngsqG9o"; // Enter Token Here
+input string TelegramChatID4 = "907324612";   // Enter Chat ID Here
 
 //--- Logging ---
 input string separador_logs="----------------"; // Logging Inputs
@@ -224,7 +224,7 @@ int OnInit()
    ObjectSetInteger(0, BG_RECT, OBJPROP_XDISTANCE, 10);
    ObjectSetInteger(0, BG_RECT, OBJPROP_YDISTANCE, 20);
    ObjectSetInteger(0, BG_RECT, OBJPROP_XSIZE, 580); // Ancho reducido
-   ObjectSetInteger(0, BG_RECT, OBJPROP_YSIZE, 370);
+   ObjectSetInteger(0, BG_RECT, OBJPROP_YSIZE, 220);
    ObjectSetInteger(0, BG_RECT, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, BG_RECT, OBJPROP_BGCOLOR, RGB(33,33,33));
    ObjectSetInteger(0, BG_RECT, OBJPROP_BORDER_TYPE, BORDER_FLAT);
@@ -239,7 +239,7 @@ int OnInit()
    int line_height = 15;
    string font_name = "Courier New";
    int font_size = 10;
-   string separator_text = "-------------------------------------";
+   string separator_text = "------------------------------";
 
    #define CREATE_LABEL(name) \
    ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0); \
@@ -316,7 +316,7 @@ int OnInit()
    // Botón Screenshot
    ObjectCreate(0, BUTTON_SEND_SCREENSHOT, OBJ_BUTTON, 0, 0, 0);
    ObjectSetInteger(0, BUTTON_SEND_SCREENSHOT, OBJPROP_XDISTANCE, 10);
-   ObjectSetInteger(0, BUTTON_SEND_SCREENSHOT, OBJPROP_YDISTANCE, 400);
+   ObjectSetInteger(0, BUTTON_SEND_SCREENSHOT, OBJPROP_YDISTANCE, 250);
    ObjectSetInteger(0, BUTTON_SEND_SCREENSHOT, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, BUTTON_SEND_SCREENSHOT, OBJPROP_XSIZE, 120);
    ObjectSetInteger(0, BUTTON_SEND_SCREENSHOT, OBJPROP_YSIZE, 20);
@@ -327,7 +327,7 @@ int OnInit()
    // Botón Cleanup
    ObjectCreate(0, BUTTON_CLEANUP_FILES, OBJ_BUTTON, 0, 0, 0);
    ObjectSetInteger(0, BUTTON_CLEANUP_FILES, OBJPROP_XDISTANCE, 140);
-   ObjectSetInteger(0, BUTTON_CLEANUP_FILES, OBJPROP_YDISTANCE, 400);
+   ObjectSetInteger(0, BUTTON_CLEANUP_FILES, OBJPROP_YDISTANCE, 250);
    ObjectSetInteger(0, BUTTON_CLEANUP_FILES, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, BUTTON_CLEANUP_FILES, OBJPROP_XSIZE, 120);
    ObjectSetInteger(0, BUTTON_CLEANUP_FILES, OBJPROP_YSIZE, 20);
@@ -338,7 +338,7 @@ int OnInit()
    // Botón Test Bot
    ObjectCreate(0, BUTTON_TEST_BOT2, OBJ_BUTTON, 0, 0, 0);
    ObjectSetInteger(0, BUTTON_TEST_BOT2, OBJPROP_XDISTANCE, 270);
-   ObjectSetInteger(0, BUTTON_TEST_BOT2, OBJPROP_YDISTANCE, 400);
+   ObjectSetInteger(0, BUTTON_TEST_BOT2, OBJPROP_YDISTANCE, 250);
    ObjectSetInteger(0, BUTTON_TEST_BOT2, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ObjectSetInteger(0, BUTTON_TEST_BOT2, OBJPROP_XSIZE, 120);
    ObjectSetInteger(0, BUTTON_TEST_BOT2, OBJPROP_YSIZE, 20);
